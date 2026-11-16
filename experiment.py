@@ -3,6 +3,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -31,6 +32,11 @@ def build_candidates():
             ("tfidf", TfidfVectorizer(max_features=50000, ngram_range=(1, 2))),
             ("clf", LinearSVC()),
         ]),
+        # Same SVM wrapped with probability calibration, so it can report confidence
+        "Calibrated LinearSVC, uni+bigrams": Pipeline([
+            ("tfidf", TfidfVectorizer(max_features=50000, ngram_range=(1, 2))),
+            ("clf", CalibratedClassifierCV(LinearSVC(), cv=3)),
+        ]),
         "Naive Bayes, uni+bigrams": Pipeline([
             ("tfidf", TfidfVectorizer(max_features=50000, ngram_range=(1, 2))),
             ("clf", MultinomialNB()),
@@ -56,13 +62,16 @@ def main():
         accuracy = accuracy_score(y_val, pipeline.predict(X_val))
         elapsed = time.time() - start
         results.append((name, accuracy, elapsed))
-        print(f"{name:<28} val accuracy: {accuracy:.4f}  ({elapsed:.1f}s)")
+        print(f"{name:<36} val accuracy: {accuracy:.4f}  ({elapsed:.1f}s)")
 
-    best_name = max(results, key=lambda r: r[1])[0]
-    print(f"\nBest on validation: {best_name}")
+    # Prefer models that can report confidence; among those, pick the most accurate
+    candidates = build_candidates()
+    with_proba = [r for r in results if hasattr(candidates[r[0]], "predict_proba")]
+    best_name = max(with_proba, key=lambda r: r[1])[0]
+    print(f"\nBest model with probability output: {best_name}")
 
     # Retrain the chosen model on all training data, then evaluate once on the test set
-    best = build_candidates()[best_name]
+    best = candidates[best_name]
     best.fit(X, y)
     test_accuracy = accuracy_score(test["label"], best.predict(test["text"].map(clean_text)))
     print(f"Test accuracy of {best_name}: {test_accuracy:.4f}")

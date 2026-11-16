@@ -17,7 +17,10 @@ def main():
 
     test["predicted"] = model.predict(cleaned)
     # Signed score: positive means the model leans positive; larger magnitude means more confident
-    test["score"] = model.decision_function(cleaned)
+    if hasattr(model, "predict_proba"):
+        test["score"] = model.predict_proba(cleaned)[:, 1] - 0.5
+    else:
+        test["score"] = model.decision_function(cleaned)
     test["length"] = test["text"].str.split().str.len()
 
     correct = test[test["predicted"] == test["label"]]
