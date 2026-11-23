@@ -60,3 +60,8 @@ def test_predict_without_model_returns_503(monkeypatch):
     client = TestClient(app_module.app)
     response = client.post("/predict", json={"text": "great movie"})
     assert response.status_code == 503
+
+def test_root_serves_frontend(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]

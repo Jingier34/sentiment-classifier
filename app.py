@@ -2,6 +2,7 @@ from pathlib import Path
 
 import joblib
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from preprocess import clean_text
@@ -25,6 +26,11 @@ def get_model():
 
 class PredictRequest(BaseModel):
     text: str
+
+
+@app.get("/")
+def serve_frontend():
+    return FileResponse("index.html")
 
 
 @app.get("/health")
