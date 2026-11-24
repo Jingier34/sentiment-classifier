@@ -17,6 +17,11 @@
         .bar-track { background: #ddd; border-radius: 4px; height: 14px; margin-top: 10px; }
         .bar { height: 100%; border-radius: 4px; background: #4CAF50; }
         .error { color: #c62828; }
+        .explanation { margin-top: 16px; font-size: 14px; }
+        .term-row { margin-top: 8px; }
+        .chip { display: inline-block; padding: 3px 8px; margin: 3px 4px 0 0; border-radius: 12px; font-size: 13px; }
+        .chip.pos { background: #e8f5e9; color: #2e7d32; }
+        .chip.neg { background: #ffebee; color: #c62828; }
     </style>
 </head>
 <body>
@@ -26,6 +31,7 @@
     <div class="examples">
         <button data-text="An absolute masterpiece. The acting was brilliant and I loved every minute.">Positive example</button>
         <button data-text="A complete waste of time. The plot made no sense and the ending was awful.">Negative example</button>
+        <button data-text="The acting was brilliant, but the plot was slow and boring.">Mixed example</button>
         <button data-text="It was not bad at all, better than I expected.">"Not bad"</button>
     </div>
 
@@ -36,6 +42,10 @@
         <div class="label" id="resultLabel"></div>
         <div id="resultConfidence"></div>
         <div class="bar-track"><div class="bar" id="confidenceBar"></div></div>
+        <div class="explanation" id="explanation">
+            <div class="term-row"><strong>Pushed toward positive:</strong> <span id="positiveTerms"></span></div>
+            <div class="term-row"><strong>Pushed toward negative:</strong> <span id="negativeTerms"></span></div>
+        </div>
     </div>
 
     <script>
@@ -45,6 +55,9 @@
         const resultLabel = document.getElementById('resultLabel');
         const resultConfidence = document.getElementById('resultConfidence');
         const bar = document.getElementById('confidenceBar');
+        const explanationBox = document.getElementById('explanation');
+        const positiveTerms = document.getElementById('positiveTerms');
+        const negativeTerms = document.getElementById('negativeTerms');
 
         document.querySelectorAll('.examples button').forEach(exampleButton => {
             exampleButton.addEventListener('click', () => {
@@ -58,6 +71,22 @@
             resultLabel.textContent = `Error: ${message}`;
             resultConfidence.textContent = '';
             bar.parentElement.style.display = 'none';
+            explanationBox.style.display = 'none';
+        }
+
+        // Build chips with textContent so terms are always shown as plain text
+        function renderTerms(container, items, cssClass) {
+            container.replaceChildren();
+            if (items.length === 0) {
+                container.textContent = 'none';
+                return;
+            }
+            items.forEach(item => {
+                const chip = document.createElement('span');
+                chip.className = `chip ${cssClass}`;
+                chip.textContent = item.term;
+                container.appendChild(chip);
+            });
         }
 
         button.addEventListener('click', async () => {
@@ -79,10 +108,10 @@
                     showError(typeof data.detail === 'string' ? data.detail : 'Invalid input.');
                     return;
                 }
-                // textContent renders values as plain text, so nothing from the response is executed as HTML
                 resultBox.style.display = 'block';
                 resultLabel.className = `label ${data.label}`;
                 resultLabel.textContent = data.label === 'positive' ? 'Positive' : 'Negative';
+
                 if (data.confidence !== undefined) {
                     const percent = (data.confidence * 100).toFixed(1);
                     resultConfidence.textContent = `Confidence: ${percent}%`;
@@ -92,6 +121,14 @@
                 } else {
                     resultConfidence.textContent = '';
                     bar.parentElement.style.display = 'none';
+                }
+
+                if (data.explanation) {
+                    explanationBox.style.display = 'block';
+                    renderTerms(positiveTerms, data.explanation.positive, 'pos');
+                    renderTerms(negativeTerms, data.explanation.negative, 'neg');
+                } else {
+                    explanationBox.style.display = 'none';
                 }
             } catch (err) {
                 showError('Could not reach the server.');

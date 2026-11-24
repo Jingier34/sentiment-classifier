@@ -65,3 +65,12 @@ def test_root_serves_frontend(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+
+def test_predict_explains_positive_words(client):
+    explanation = client.post("/predict", json={"text": "great movie"}).json()["explanation"]
+    assert "great" in [item["term"] for item in explanation["positive"]]
+
+
+def test_predict_explains_negative_words(client):
+    explanation = client.post("/predict", json={"text": "terrible movie"}).json()["explanation"]
+    assert "terrible" in [item["term"] for item in explanation["negative"]]
