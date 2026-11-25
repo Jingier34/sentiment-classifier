@@ -18,6 +18,12 @@ Models were compared on a validation split held out from the training data (20%,
 
 The calibrated linear SVM was selected because it matches the plain SVM's accuracy while also producing probabilities, which the API uses as confidence scores. It reaches **90.04% accuracy on the 25,000-review test set**, compared with 88.37% for the unigram logistic regression baseline.
 
+## Explainability
+
+Each prediction returns the terms in the input that pushed the result most strongly toward positive and negative. Because the model is linear, a term's contribution is simply its TF-IDF value multiplied by the model's learned weight for that term. The calibrated SVM contains several fitted models, so their weights are averaged. Terms whose influence is under 10% of the strongest term's are hidden to keep explanations readable.
+
+Explanations also expose what the model has learned from correlations rather than meaning. For example, the neutral word "plot" pushes predictions toward negative, because reviewers often mention the plot when complaining about it.
+
 ## Error Analysis
 
 - **Bigrams help with negation.** Reviews containing phrases like "not bad" or "not good" are classified slightly more accurately (91.0%) than the rest (90.0%), since bigram features capture these phrases as units.
@@ -52,7 +58,7 @@ Then open http://127.0.0.1:8000/docs for the interactive API docs.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/predict` | Body: `{"text": "..."}`. Returns `label` (`positive` or `negative`) and `confidence` (0.5 to 1.0) |
+| POST | `/predict` | Body: `{"text": "..."}`. Returns `label` (`positive` or `negative`), `confidence` (0.5 to 1.0), and `explanation` (the most influential positive and negative terms) |
 | GET | `/health` | Health check |
 
 Input is rejected with 400 if empty or longer than 10,000 characters, and the API returns 503 if no trained model is available.

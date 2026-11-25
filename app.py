@@ -13,6 +13,8 @@ app = FastAPI()
 MODEL_PATH = Path("models/best.joblib")
 MAX_TEXT_LENGTH = 10000
 TOP_N_WORDS = 5
+# Only show terms whose influence is at least this fraction of the strongest term's influence
+MIN_RELATIVE_WEIGHT = 0.1
 _model = None
 
 
@@ -44,16 +46,21 @@ def explain(model, cleaned):
         return None
     tfidf = model.named_steps["tfidf"]
     vector = tfidf.transform([cleaned])
+    # No known terms in the text, so there is nothing to explain
+    if vector.nnz == 0:
+        return {"positive": [], "negative": []}
+
     terms = tfidf.get_feature_names_out()[vector.indices]
     # Each term's contribution is its TF-IDF value times the model's weight for it
     contributions = vector.data * weights[vector.indices]
     ranked = sorted(zip(terms, contributions), key=lambda pair: pair[1])
+    min_weight = max(abs(c) for _, c in ranked) * MIN_RELATIVE_WEIGHT
 
     def to_list(pairs):
         return [{"term": term, "weight": round(float(weight), 4)} for term, weight in pairs]
 
-    negative = [pair for pair in ranked[:TOP_N_WORDS] if pair[1] < 0]
-    positive = [pair for pair in reversed(ranked[-TOP_N_WORDS:]) if pair[1] > 0]
+    negative = [pair for pair in ranked[:TOP_N_WORDS] if pair[1] <= -min_weight]
+    positive = [pair for pair in reversed(ranked[-TOP_N_WORDS:]) if pair[1] >= min_weight]
     return {"positive": to_list(positive), "negative": to_list(negative)}
 
 

@@ -74,3 +74,15 @@ def test_predict_explains_positive_words(client):
 def test_predict_explains_negative_words(client):
     explanation = client.post("/predict", json={"text": "terrible movie"}).json()["explanation"]
     assert "terrible" in [item["term"] for item in explanation["negative"]]
+
+def test_explanation_filters_weak_terms(client):
+    # "movie" appears equally in positive and negative training examples, so its weight is near zero
+    explanation = client.post("/predict", json={"text": "great movie"}).json()["explanation"]
+    all_terms = [item["term"] for item in explanation["positive"] + explanation["negative"]]
+    assert "movie" not in all_terms
+
+
+def test_explanation_with_unknown_words(client):
+    response = client.post("/predict", json={"text": "xyzzy qwerty"})
+    assert response.status_code == 200
+    assert response.json()["explanation"] == {"positive": [], "negative": []}
